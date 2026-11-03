@@ -176,11 +176,15 @@ void MetalOperators::attention(
     TensorView q,
     TensorView k,
     TensorView v,
-    bool causal,
+    int blockSize,
     TensorView out) {
-  // The kernel where it takes these, and the composition where it does not.
-  if (metal_native::attention(q, k, v, causal, out)) return;
-  Operators::attention(q, k, v, causal, out);
+  // Checked before the kernel, which would otherwise run a negative block as no mask at all.
+  F::checkAttentionBlockSize(q, k, blockSize);
+
+  // The kernel where it takes these, and the composition where it does not. The kernel has no
+  // block larger than one.
+  if (blockSize <= 1 && metal_native::attention(q, k, v, blockSize == 1, out)) return;
+  Operators::attention(q, k, v, blockSize, out);
 }
 
 void MetalOperators::softmax(TensorView input, TensorView out) {
